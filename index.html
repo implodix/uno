@@ -51,11 +51,13 @@
             border-radius: 15px;
             margin: 20px auto;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             font-size: 3em;
             background: #fff;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            color: #333;
         }
         .draw-pile {
             width: 100px;
@@ -96,9 +98,10 @@
             transition: all 0.3s;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             user-select: none;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         .card:hover { transform: translateY(-10px) scale(1.05); }
-        .card.playable { box-shadow: 0 0 20px #00ff00; }
+        .card.playable { box-shadow: 0 0 20px #00ff00, 0 5px 15px rgba(0,0,0,0.3); }
         .card.red { background: linear-gradient(135deg, #ff4757, #ff3838); color: white; }
         .card.blue { background: linear-gradient(135deg, #3742fa, #2f3542); color: white; }
         .card.green { background: linear-gradient(135deg, #00b894, #00a085); color: white; }
@@ -224,7 +227,6 @@
     </div>
 
     <script>
-        // Игровые переменные
         let deck = [];
         let playerHand = [];
         let cpuHand = [];
@@ -238,7 +240,6 @@
         const colors = ['red', 'blue', 'green', 'yellow'];
         const values = ['0','1','2','3','4','5','6','7','8','9','skip','draw2','reverse'];
         
-        // Инициализация игры
         function initGame() {
             deck = [];
             playerHand = [];
@@ -248,7 +249,6 @@
             gameWon = false;
             drawPenalty = 0;
             
-            // Создание колоды
             colors.forEach(color => {
                 values.forEach(value => {
                     if (value === '0') {
@@ -261,22 +261,18 @@
                 });
             });
             
-            // Дикие карты
             for (let i = 0; i < 4; i++) {
                 deck.push({color: 'wild', value: 'draw4'});
                 deck.push({color: 'wild', value: 'wild'});
             }
             
-            // Перемешивание
             shuffle(deck);
             
-            // Раздача карт
             for (let i = 0; i < 7; i++) {
                 playerHand.push(deck.pop());
                 cpuHand.push(deck.pop());
             }
             
-            // Первая карта сброса
             let firstCard = deck.pop();
             while (firstCard.color === 'wild') {
                 deck.unshift(firstCard);
@@ -291,7 +287,6 @@
             document.getElementById('currentPlayer').textContent = 'Ваш ход!';
         }
         
-        // Перемешивание
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -299,130 +294,113 @@
             }
         }
         
-        // Обновление дисплея
         function updateDisplay() {
-            // Игрок
             const playerHandEl = document.getElementById('playerHand');
             playerHandEl.innerHTML = '';
             playerHand.forEach((card, index) => {
-                const cardEl = createCardElement(card, index);
+                const cardEl = document.createElement('div');
+                cardEl.className = `card ${card.color}`;
                 if (canPlayCard(card)) {
                     cardEl.classList.add('playable');
                     cardEl.onclick = () => playCard(index);
                 }
+                
+                let symbol = getCardSymbol(card);
+                cardEl.innerHTML = `
+                    <div style="font-size: 24px; line-height: 1;">${symbol}</div>
+                    <div style="font-size: 12px; margin-top: 2px;">${card.color.slice(0,1).toUpperCase()}</div>
+                `;
                 playerHandEl.appendChild(cardEl);
             });
             
-            // CPU (показываем только количество)
             document.getElementById('cpuHand').innerHTML = 
-                `<div class="card" style="width: auto; padding: 20px;">${cpuHand.length} карт</div>`;
+                `<div class="card" style="width: auto; padding: 20px; background: linear-gradient(135deg, #666, #444);">${cpuHand.length} карт</div>`;
             
-            // Сброс
+            // ✅ ИСПРАВЛЕНО: Корректное отображение верхней карты
             const topCard = discardPile[discardPile.length - 1];
-            document.getElementById('discardPile').innerHTML = 
-                createCardElement(topCard, -1, true).innerHTML;
+            const discardEl = document.getElementById('discardPile');
+            discardEl.innerHTML = '';
+            const cardDiv = document.createElement('div');
+            cardDiv.className = `card ${topCard.color}`;
+            cardDiv.style.width = '100%';
+            cardDiv.style.height = '100%';
+            cardDiv.style.fontSize = '32px';
+            let symbol = getCardSymbol(topCard);
+            cardDiv.innerHTML = `
+                <div style="font-size: 36px; line-height: 1;">${symbol}</div>
+                <div style="font-size: 16px;">${topCard.color.slice(0,1).toUpperCase()}</div>
+            `;
+            discardEl.appendChild(cardDiv);
             
-            // Счёт
             document.getElementById('playerScore').textContent = calculateScore(playerHand);
             document.getElementById('cpuScore').textContent = calculateScore(cpuHand);
             
-            // Кнопка УНО
             document.getElementById('unoBtn').style.display = 
                 playerHand.length === 1 && currentPlayer === 'player' ? 'inline-block' : 'none';
         }
         
-        // Создание элемента карты
-        function createCardElement(card, index, large = false) {
-            const div = document.createElement('div');
-            div.className = `card ${card.color}`;
-            div.style.width = large ? '120px' : '70px';
-            div.style.height = large ? '180px' : '100px';
-            div.style.fontSize = large ? '32px' : '18px';
-            
-            let symbol = card.value;
-            if (card.value === 'draw2') symbol = '+2';
-            else if (card.value === 'draw4') symbol = '+4';
-            else if (card.value === 'skip') symbol = '⏭️';
-            else if (card.value === 'reverse') symbol = '↺';
-            else if (card.color === 'wild') symbol = '🃏';
-            
-            div.innerHTML = `<div>${symbol}</div><div style="font-size: 12px;">${card.color.slice(0,1).toUpperCase()}</div>`;
-            return div;
+        function getCardSymbol(card) {
+            if (card.value === 'draw2') return '+2';
+            if (card.value === 'draw4') return '+4';
+            if (card.value === 'skip') return '⏭️';
+            if (card.value === 'reverse') return '↺';
+            if (card.color === 'wild') return '🃏';
+            return card.value;
         }
         
-        // Проверка возможности хода
         function canPlayCard(card) {
             return card.color === currentColor || card.value === currentValue || card.color === 'wild';
         }
         
-        // Ход игрока
         function playCard(index) {
             if (currentPlayer !== 'player' || gameWon) return;
             
             const card = playerHand[index];
             if (!canPlayCard(card)) return;
             
-            // Дикая карта
+            playerHand.splice(index, 1);
+            discardPile.push(card);
+            
             if (card.color === 'wild') {
                 document.getElementById('colorPicker').style.display = 'block';
-                currentPlayer = 'player'; // Ждём выбора цвета
                 return;
             }
             
-            executeCardEffect(card);
-            playerHand.splice(index, 1);
-            discardPile.push(card);
             currentColor = card.color;
             currentValue = card.value;
             
             checkWin('player');
             if (!gameWon) {
                 currentPlayer = 'cpu';
-                setTimeout(cpuTurn, 1000);
+                setTimeout(cpuTurn, 800);
             }
             updateDisplay();
         }
         
-        // Выбор цвета для дикой карты
         function selectColor(color) {
             document.getElementById('colorPicker').style.display = 'none';
-            const card = discardPile[discardPile.length - 1];
             currentColor = color;
             
-            // Продолжаем после выбора цвета
-            executeCardEffect(card);
             checkWin('player');
             if (!gameWon) {
                 currentPlayer = 'cpu';
-                setTimeout(cpuTurn, 1000);
+                setTimeout(cpuTurn, 800);
             }
             updateDisplay();
         }
         
-        // Эффект карты
-        function executeCardEffect(card) {
-            if (card.value === 'draw2') {
-                drawPenalty += 2;
-            } else if (card.value === 'draw4') {
-                drawPenalty += 4;
-            }
-        }
-        
-        // Взять карту
         function drawCard() {
             if (currentPlayer !== 'player' || gameWon) return;
             
-            const card = deck.pop();
+            let card = deck.pop();
             if (!card) {
                 deck = discardPile.slice(0, -1);
                 discardPile = [discardPile[discardPile.length - 1]];
                 shuffle(deck);
                 return;
             }
-            
             playerHand.push(card);
             
-            // Применяем штрафные карты
             if (drawPenalty > 0) {
                 for (let i = 0; i < drawPenalty; i++) {
                     playerHand.push(deck.pop());
@@ -435,17 +413,17 @@
             updateDisplay();
         }
         
-        // Ход компьютера
         function cpuTurn() {
             if (gameWon) return;
             
-            // Проверяем возможные ходы
             let playableCards = cpuHand.filter(canPlayCard);
             
             if (playableCards.length > 0) {
-                // Выбираем случайную подходящую карту
                 const card = playableCards[Math.floor(Math.random() * playableCards.length)];
                 const index = cpuHand.indexOf(card);
+                
+                cpuHand.splice(index, 1);
+                discardPile.push(card);
                 
                 if (card.color === 'wild') {
                     currentColor = colors[Math.floor(Math.random() * colors.length)];
@@ -453,12 +431,7 @@
                     currentColor = card.color;
                     currentValue = card.value;
                 }
-                
-                executeCardEffect(card);
-                cpuHand.splice(index, 1);
-                discardPile.push(card);
             } else {
-                // Берём карту
                 const card = deck.pop();
                 if (card) cpuHand.push(card);
             }
@@ -468,19 +441,17 @@
             updateDisplay();
         }
         
-        // Проверка победы
         function checkWin(player) {
             const hand = player === 'player' ? playerHand : cpuHand;
             if (hand.length === 0) {
                 gameWon = true;
                 const score = calculateScore(player === 'player' ? cpuHand : playerHand);
                 document.getElementById('winnerText').innerHTML = 
-                    `🎉 ${player === 'player' ? 'Вы' : 'Компьютер'} победил! ${score} очков`;
+                    `🎉 ${player === 'player' ? 'Вы' : 'Компьютер'} победил!`;
                 document.getElementById('winner').style.display = 'block';
             }
         }
         
-        // Подсчёт очков
         function calculateScore(hand) {
             let score = 0;
             hand.forEach(card => {
@@ -491,21 +462,18 @@
             return score;
         }
         
-        // УНО!
         function sayUno() {
             if (playerHand.length === 1 && currentPlayer === 'player') {
                 alert('УНО! 🗣️');
             }
         }
         
-        // Новая игра
         function newGame() {
             document.getElementById('winner').style.display = 'none';
             document.getElementById('colorPicker').style.display = 'none';
             initGame();
         }
         
-        // Старт
         initGame();
     </script>
 </body>
